@@ -9,14 +9,10 @@ import (
 	"github.com/ecc1/spi"
 )
 
-const (
-	interruptPin       = 46 // Intel Edison GPIO for receive interrupts
-	writeUsingTransfer = false
-)
-
-type HwFlavor interface {
+type Flavor interface {
 	Name() string
 	Speed() int
+	InterruptPin() int
 	ReadSingleAddress(byte) byte
 	ReadBurstAddress(byte) byte
 	WriteSingleAddress(byte) byte
@@ -24,101 +20,90 @@ type HwFlavor interface {
 }
 
 type Hardware struct {
-	device       *spi.Device
-	hf           HwFlavor
-	err          error
-	interruptPin gpio.InputPin
+	device    *spi.Device
+	flavor    Flavor
+	err       error
+	interrupt gpio.InputPin
 }
 
-func (hw *Hardware) Name() string {
-	return hw.hf.Name()
+func (h *Hardware) Name() string {
+	return h.flavor.Name()
 }
 
-func (hw *Hardware) Error() error {
-	return hw.err
+func (h *Hardware) Error() error {
+	return h.err
 }
 
-func (hw *Hardware) SetError(err error) {
-	hw.err = err
+func (h *Hardware) SetError(err error) {
+	h.err = err
 }
 
-func (hw *Hardware) AwaitInterrupt(timeout time.Duration) {
-	hw.err = hw.interruptPin.Wait(timeout)
+func (h *Hardware) AwaitInterrupt(timeout time.Duration) {
+	h.err = h.interrupt.Wait(timeout)
 }
 
-func Open(hf HwFlavor) *Hardware {
-	hw := &Hardware{hf: hf}
-	hw.device, hw.err = spi.Open(hf.Speed())
-	if hw.Error() != nil {
-		return hw
+func Open(flavor Flavor) *Hardware {
+	h := &Hardware{flavor: flavor}
+	h.device, h.err = spi.Open(flavor.Speed())
+	if h.Error() != nil {
+		return h
 	}
-	hw.err = hw.device.SetMaxSpeed(hf.Speed())
-	if hw.Error() != nil {
-		hw.Close()
-		return hw
+	h.err = h.device.SetMaxSpeed(flavor.Speed())
+	if h.Error() != nil {
+		h.Close()
+		return h
 	}
-	hw.interruptPin, hw.err = gpio.Input(interruptPin, "rising", false)
-	if hw.Error() != nil {
-		hw.Close()
-		return hw
+	h.interrupt, h.err = gpio.Input(flavor.InterruptPin(), "rising", false)
+	if h.Error() != nil {
+		h.Close()
+		return h
 	}
-	return hw
+	return h
 }
 
-func (hw *Hardware) Close() {
-	hw.device.Close()
+func (h *Hardware) Close() {
+	h.device.Close()
 }
 
-func (hw *Hardware) ReadRegister(addr byte) byte {
-	if hw.Error() != nil {
+func (h *Hardware) ReadRegister(addr byte) byte {
+	if h.Error() != nil {
 		return 0
 	}
-	buf := []byte{hw.hf.ReadSingleAddress(addr), 0}
-	hw.err = hw.device.Transfer(buf)
+	buf := []byte{h.flavor.ReadSingleAddress(addr), 0}
+	h.err = h.device.Transfer(buf)
 	return buf[1]
 }
 
-func (hw *Hardware) ReadBurst(addr byte, n int) []byte {
-	if hw.Error() != nil {
+func (h *Hardware) ReadBurst(addr byte, n int) []byte {
+	if h.Error() != nil {
 		return nil
 	}
 	buf := make([]byte, n+1)
-	buf[0] = hw.hf.ReadBurstAddress(addr)
-	hw.err = hw.device.Transfer(buf)
+	buf[0] = h.flavor.ReadBurstAddress(addr)
+	h.err = h.device.Transfer(buf)
 	return buf[1:]
 }
 
-func (hw *Hardware) writeData(data []byte) {
-	if hw.Error() != nil {
-		return
-	}
-	if writeUsingTransfer {
-		hw.err = hw.device.Transfer(data)
-	} else {
-		hw.err = hw.device.Write(data)
-	}
+func (h *Hardware) WriteRegister(addr byte, value byte) {
+	h.err = h.device.Write([]byte{h.flavor.WriteSingleAddress(addr), value})
 }
 
-func (hw *Hardware) WriteRegister(addr byte, value byte) {
-	hw.writeData([]byte{hw.hf.WriteSingleAddress(addr), value})
+func (h *Hardware) WriteBurst(addr byte, data []byte) {
+	h.err = h.device.Write(append([]byte{h.flavor.WriteBurstAddress(addr)}, data...))
 }
 
-func (hw *Hardware) WriteBurst(addr byte, data []byte) {
-	hw.writeData(append([]byte{hw.hf.WriteBurstAddress(addr)}, data...))
-}
-
-func (hw *Hardware) WriteEach(data []byte) {
+func (h *Hardware) WriteEach(data []byte) {
 	n := len(data)
 	if n%2 != 0 {
 		log.Panicf("odd data length (%d)", n)
 	}
 	for i := 0; i < n; i += 2 {
-		hw.WriteRegister(data[i], data[i+1])
+		h.WriteRegister(data[i], data[i+1])
 	}
 }
 
-func (hw *Hardware) SpiDevice() *spi.Device {
-	return hw.device
+func (h *Hardware) SpiDevice() *spi.Device {
+	return h.device
 }
 
 type HardwareVersionError struct {
