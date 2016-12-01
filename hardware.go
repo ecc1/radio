@@ -42,6 +42,12 @@ func (h *Hardware) AwaitInterrupt(timeout time.Duration) {
 	h.err = h.interrupt.Wait(timeout)
 }
 
+func (h *Hardware) ReadInterrupt() bool {
+	b, err := h.interrupt.Read()
+	h.err = err
+	return b
+}
+
 func Open(flavor Flavor) *Hardware {
 	h := &Hardware{flavor: flavor}
 	h.device, h.err = spi.Open(flavor.Speed())
