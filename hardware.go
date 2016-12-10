@@ -11,6 +11,7 @@ import (
 
 type Flavor interface {
 	Name() string
+	SpiDevice() string
 	Speed() int
 	InterruptPin() int
 	ReadSingleAddress(byte) byte
@@ -28,6 +29,10 @@ type Hardware struct {
 
 func (h *Hardware) Name() string {
 	return h.flavor.Name()
+}
+
+func (h *Hardware) Device() string {
+	return h.flavor.SpiDevice()
 }
 
 func (h *Hardware) Error() error {
@@ -50,7 +55,7 @@ func (h *Hardware) ReadInterrupt() bool {
 
 func Open(flavor Flavor) *Hardware {
 	h := &Hardware{flavor: flavor}
-	h.device, h.err = spi.Open(flavor.Speed())
+	h.device, h.err = spi.Open(flavor.SpiDevice(), flavor.Speed())
 	if h.Error() != nil {
 		return h
 	}
