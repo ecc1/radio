@@ -13,6 +13,7 @@ type Flavor interface {
 	Name() string
 	SPIDevice() string
 	Speed() int
+	CustomCS() int
 	InterruptPin() int
 	ReadSingleAddress(byte) byte
 	ReadBurstAddress(byte) byte
@@ -55,7 +56,7 @@ func (h *Hardware) ReadInterrupt() bool {
 
 func Open(flavor Flavor) *Hardware {
 	h := &Hardware{flavor: flavor}
-	h.device, h.err = spi.Open(flavor.SPIDevice(), flavor.Speed())
+	h.device, h.err = spi.Open(flavor.SPIDevice(), flavor.Speed(), flavor.CustomCS())
 	if h.Error() != nil {
 		return h
 	}
