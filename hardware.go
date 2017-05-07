@@ -9,7 +9,7 @@ import (
 	"github.com/ecc1/spi"
 )
 
-type Flavor interface {
+type HardwareFlavor interface {
 	Name() string
 	SPIDevice() string
 	Speed() int
@@ -23,7 +23,7 @@ type Flavor interface {
 
 type Hardware struct {
 	device    *spi.Device
-	flavor    Flavor
+	flavor    HardwareFlavor
 	err       error
 	interrupt gpio.InputPin
 }
@@ -54,7 +54,7 @@ func (h *Hardware) ReadInterrupt() bool {
 	return b
 }
 
-func Open(flavor Flavor) *Hardware {
+func Open(flavor HardwareFlavor) *Hardware {
 	h := &Hardware{flavor: flavor}
 	h.device, h.err = spi.Open(flavor.SPIDevice(), flavor.Speed(), flavor.CustomCS())
 	if h.Error() != nil {
