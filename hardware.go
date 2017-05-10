@@ -9,6 +9,8 @@ import (
 	"github.com/ecc1/spi"
 )
 
+// HardwareFlavor is the interface satisfied by a particular SPI device.
+// It specifies how to open the device and how to encode common I/O operations.
 type HardwareFlavor interface {
 	Name() string
 	SPIDevice() string
@@ -21,6 +23,7 @@ type HardwareFlavor interface {
 	WriteBurstAddress(byte) byte
 }
 
+// Hardware represents an SPI radio device.
 type Hardware struct {
 	device    *spi.Device
 	flavor    HardwareFlavor
@@ -28,32 +31,39 @@ type Hardware struct {
 	interrupt gpio.InputPin
 }
 
+// Name returns the name of the radio device.
 func (h *Hardware) Name() string {
 	return h.flavor.Name()
 }
 
+// Device returns the radio's SPI device pathname.
 func (h *Hardware) Device() string {
 	return h.flavor.SPIDevice()
 }
 
+// Error returns the error state of the radio device.
 func (h *Hardware) Error() error {
 	return h.err
 }
 
+// SetError sets the error state of the radio device.
 func (h *Hardware) SetError(err error) {
 	h.err = err
 }
 
+// AwaitInterrupt waits with the given timeout for a receive interrupt.
 func (h *Hardware) AwaitInterrupt(timeout time.Duration) {
 	h.err = h.interrupt.Wait(timeout)
 }
 
+// ReadInterrupt returns the state of the receive interrupt.
 func (h *Hardware) ReadInterrupt() bool {
 	b, err := h.interrupt.Read()
 	h.err = err
 	return b
 }
 
+// Open opens the SPI radio module described by the given flavor.
 func Open(flavor HardwareFlavor) *Hardware {
 	h := &Hardware{flavor: flavor}
 	h.device, h.err = spi.Open(flavor.SPIDevice(), flavor.Speed(), flavor.CustomCS())
@@ -73,10 +83,12 @@ func Open(flavor HardwareFlavor) *Hardware {
 	return h
 }
 
+// Close closes the radio device.
 func (h *Hardware) Close() {
-	h.device.Close()
+	h.err = h.device.Close()
 }
 
+// ReadRegister reads the given address on the radio device.
 func (h *Hardware) ReadRegister(addr byte) byte {
 	if h.Error() != nil {
 		return 0
@@ -86,6 +98,7 @@ func (h *Hardware) ReadRegister(addr byte) byte {
 	return buf[1]
 }
 
+// ReadBurst reads a burst of n bytes from given address on the radio device.
 func (h *Hardware) ReadBurst(addr byte, n int) []byte {
 	if h.Error() != nil {
 		return nil
@@ -96,14 +109,17 @@ func (h *Hardware) ReadBurst(addr byte, n int) []byte {
 	return buf[1:]
 }
 
+// WriteRegister writes the given value to the given address on the radio device.
 func (h *Hardware) WriteRegister(addr byte, value byte) {
 	h.err = h.device.Write([]byte{h.flavor.WriteSingleAddress(addr), value})
 }
 
+// WriteBurst writes data in burst mode to the given address on the radio device.
 func (h *Hardware) WriteBurst(addr byte, data []byte) {
 	h.err = h.device.Write(append([]byte{h.flavor.WriteBurstAddress(addr)}, data...))
 }
 
+// WriteEach writes each address-value pairs in data to the radio device.
 func (h *Hardware) WriteEach(data []byte) {
 	n := len(data)
 	if n%2 != 0 {
@@ -114,10 +130,12 @@ func (h *Hardware) WriteEach(data []byte) {
 	}
 }
 
+// SPIDevice returns the radio's SPI device.
 func (h *Hardware) SPIDevice() *spi.Device {
 	return h.device
 }
 
+// HardwareVersionError indicates a hardware version mismatch.
 type HardwareVersionError struct {
 	Actual   uint16
 	Expected uint16
