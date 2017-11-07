@@ -28,7 +28,7 @@ type Hardware struct {
 	device    *spi.Device
 	flavor    HardwareFlavor
 	err       error
-	interrupt gpio.InputPin
+	interrupt gpio.InterruptPin
 }
 
 // Name returns the name of the radio device.
@@ -75,7 +75,7 @@ func Open(flavor HardwareFlavor) *Hardware {
 		h.Close()
 		return h
 	}
-	h.interrupt, h.err = gpio.Input(flavor.InterruptPin(), "rising", false)
+	h.interrupt, h.err = gpio.Interrupt(flavor.InterruptPin(), false, "rising")
 	if h.Error() != nil {
 		h.Close()
 		return h
