@@ -35,7 +35,8 @@ type Interface interface {
 	Error() error
 	SetError(error)
 
-	Hardware() *Hardware
+	Name() string
+	Device() string
 }
 
 // MegaHertz converts a frequency in Hertz into a string denoting

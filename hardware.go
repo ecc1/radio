@@ -12,7 +12,6 @@ import (
 // HardwareFlavor is the interface satisfied by a particular SPI device.
 // It specifies how to open the device and how to encode common I/O operations.
 type HardwareFlavor interface {
-	Name() string
 	SPIDevice() string
 	Speed() int
 	CustomCS() int
@@ -29,11 +28,6 @@ type Hardware struct {
 	flavor    HardwareFlavor
 	err       error
 	interrupt gpio.InterruptPin
-}
-
-// Name returns the name of the radio device.
-func (h *Hardware) Name() string {
-	return h.flavor.Name()
 }
 
 // Device returns the radio's SPI device pathname.
