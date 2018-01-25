@@ -28,6 +28,7 @@ type Interface interface {
 
 	Send([]byte)
 	Receive(time.Duration) ([]byte, int)
+	SendAndReceive([]byte, time.Duration) ([]byte, int)
 
 	State() string
 	Statistics() Statistics
