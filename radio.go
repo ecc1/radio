@@ -5,18 +5,6 @@ import (
 	"time"
 )
 
-// Counters represents amounts of data sent and received.
-type Counters struct {
-	Sent     int
-	Received int
-}
-
-// Statistics counts the number of bytes and packets.
-type Statistics struct {
-	Bytes   Counters
-	Packets Counters
-}
-
 // Interface is the interface satisfied by a radio device.
 type Interface interface {
 	Init(frequency uint32)
@@ -31,7 +19,6 @@ type Interface interface {
 	SendAndReceive([]byte, time.Duration) ([]byte, int)
 
 	State() string
-	Statistics() Statistics
 
 	Error() error
 	SetError(error)
