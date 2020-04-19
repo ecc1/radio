@@ -28,6 +28,8 @@ type Hardware struct {
 	flavor    HardwareFlavor
 	err       error
 	interrupt gpio.InterruptPin
+	snd       []byte
+	rcv       []byte
 }
 
 // Device returns the radio's SPI device pathname.
@@ -74,6 +76,8 @@ func Open(flavor HardwareFlavor) *Hardware {
 		h.Close()
 		return h
 	}
+	h.snd = make([]byte, 2)
+	h.rcv = make([]byte, 2)
 	return h
 }
 
@@ -87,9 +91,9 @@ func (h *Hardware) ReadRegister(addr byte) byte {
 	if h.Error() != nil {
 		return 0
 	}
-	buf := []byte{h.flavor.ReadSingleAddress(addr), 0}
-	h.err = h.device.Transfer(buf)
-	return buf[1]
+	h.snd[0] = h.flavor.ReadSingleAddress(addr)
+	h.err = h.device.Transfer(h.snd, h.rcv)
+	return h.rcv[1]
 }
 
 // ReadBurst reads a burst of n bytes from given address on the radio device.
@@ -99,18 +103,23 @@ func (h *Hardware) ReadBurst(addr byte, n int) []byte {
 	}
 	buf := make([]byte, n+1)
 	buf[0] = h.flavor.ReadBurstAddress(addr)
-	h.err = h.device.Transfer(buf)
+	h.err = h.device.Transfer(buf, buf)
 	return buf[1:]
 }
 
 // WriteRegister writes the given value to the given address on the radio device.
 func (h *Hardware) WriteRegister(addr byte, value byte) {
-	h.err = h.device.Write([]byte{h.flavor.WriteSingleAddress(addr), value})
+	h.snd[0] = h.flavor.WriteSingleAddress(addr)
+	h.snd[1] = value
+	h.err = h.device.Transfer(h.snd, h.rcv)
 }
 
 // WriteBurst writes data in burst mode to the given address on the radio device.
 func (h *Hardware) WriteBurst(addr byte, data []byte) {
-	h.err = h.device.Write(append([]byte{h.flavor.WriteBurstAddress(addr)}, data...))
+	buf := make([]byte, len(data)+1)
+	buf[0] = h.flavor.WriteBurstAddress(addr)
+	copy(buf[1:], data)
+	h.err = h.device.Transfer(buf, buf)
 }
 
 // WriteEach writes each address-value pairs in data to the radio device.
